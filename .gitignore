@@ -1,0 +1,93 @@
+#######################################
+# .NET & ASP.NET Core
+#######################################
+bin/
+obj/
+packages/
+*.nupkg
+*.snupkg
+*.cache
+*.dbmdl
+*.bak
+*.log
+*.pdb
+*.dll
+*.exe
+
+# Test & coverage results
+TestResults/
+*.coverage
+*.coveragexml
+
+# Entity Framework
+migrations/ # if you use separate EF migrations dir
+*.Designer.cs
+*.edmx.sql
+*.edmx.diagram
+
+# Configuration
+appsettings.*.local.json
+secrets.json
+.env
+.env.*
+
+#######################################
+# IDEs: Visual Studio / VS Code / Rider
+#######################################
+
+# VS Code
+.vscode/
+.history/
+.vscode-test/
+
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# JetBrains Rider
+.idea/
+*.sln.iml
+
+#######################################
+# Logs & Diagnostics
+#######################################
+[Ll]ogs/
+*.log
+
+#######################################
+# Publish outputs (for dotnet publish)
+#######################################
+publish/
+dist/
+wwwroot/dist/
+
+#######################################
+# OS-specific junk
+#######################################
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+
+#######################################
+# Git
+#######################################
+!.gitignore
+
+#######################################
+# Frontend build (if applicable in the future)
+#######################################
+node_modules/
+*.tsbuildinfo
+.angular/
+dist/
