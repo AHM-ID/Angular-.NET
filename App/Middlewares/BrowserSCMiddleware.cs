@@ -96,6 +96,7 @@ namespace Angular.App.Middlewares
 
                 //? Pipeline (Content Generation)
                 await _next(context);
+                return;
             }
             catch (Exception ex)
             {

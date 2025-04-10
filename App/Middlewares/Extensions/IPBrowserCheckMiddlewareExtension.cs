@@ -9,7 +9,8 @@ namespace Angular.App.Middlewares.Extensions
             IWebHostEnvironment env
         )
         {
-            //? Pre Condition
+            //? Pre Process
+            //? Environment Checking
             switch (env.EnvironmentName)
             {
                 case "Development":

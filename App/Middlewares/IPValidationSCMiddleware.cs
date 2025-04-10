@@ -84,6 +84,7 @@ namespace Angular.App.Middlewares
 
                 //? Pipeline (Browser SC)
                 await _next(context);
+                return;
             }
             catch (Exception ex)
             {

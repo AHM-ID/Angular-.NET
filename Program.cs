@@ -77,37 +77,16 @@ builder.WebHost.UseKestrel(options =>
 #endregion
 
 #region Service Registration & Configuration
-
-builder
-    .Services.AddInvalidBrowserCheck(builder.Configuration) //? Service Configuration for reading invalid browser from appsetting
-    .AddIPValidation() //? Service Extension for ip validation
-    .AddBrowserCheck(); //? Service Extension for browser check
+// Register all application-specific services (IP validation, browser checks, etc.)
+builder.Services.AddApplicationServices(builder.Configuration);
 #endregion
-
 
 var app = builder.Build();
 
-
-#region Middleware Pipeline
-//? Set up the middleware pipeline with custom and built-in middleware
-{
-    // Register custom middleware
-    ConfigureMiddleware(app, app.Environment);
-
-    // Apply production-specific middleware only in non-development environments
-    if (!app.Environment.IsDevelopment())
-    {
-        app.UseExceptionHandler("/Error"); //* Custom error page for unhandled exceptions
-        app.UseHsts(); //* Enforce HTTP Strict Transport Security
-    }
-
-    app.UseHttpsRedirection(); //* Redirect all HTTP requests to HTTPS
-    app.UseRouting();
-}
+#region Middleware Configuration
+// Configure and apply all middlewares in the correct order based on environment
+app.UseApplicationMiddlewares(app.Environment);
 #endregion
-
-app.UseHsts();
-app.UseHttpsRedirection();
 
 app.Run();
 
@@ -187,15 +166,15 @@ app.Run();
 
 #region Version 3.0
 
-/// <summary>
-/// Configures the middleware pipeline with custom middleware for error handling and request validation.
-/// </summary>
-/// <param name="app">The WebApplication instance to configure.</param>
-/// <param name="env">The WebApplication environment instance.</param>
-static void ConfigureMiddleware(WebApplication app, IWebHostEnvironment env)
-{
-    app.UseIPBrowserCheck(env); //* Handle the ordered middleware registration
-}
+// /// <summary>
+// /// Configures the middleware pipeline with custom middleware for error handling and request validation.
+// /// </summary>
+// /// <param name="app">The WebApplication instance to configure.</param>
+// /// <param name="env">The WebApplication environment instance.</param>
+// static void ConfigureMiddleware(WebApplication app, IWebHostEnvironment env)
+// {
+//     app.UseIPBrowserCheck(env); //* Handle the ordered middleware registration
+// }
 
 #endregion
 

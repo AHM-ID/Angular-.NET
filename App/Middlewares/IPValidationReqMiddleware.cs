@@ -41,6 +41,7 @@ namespace Angular.App.Middlewares
 
                 //? Pipeline (Browser Req)
                 await _next(context);
+                return;
             }
             catch (Exception ex)
             {

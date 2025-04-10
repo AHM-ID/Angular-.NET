@@ -50,6 +50,7 @@ namespace Angular.App.Middlewares
 
                 //? Continue the request pipeline (next middleware)
                 await _next(context);
+                return;
             }
             catch (Exception ex)
             {

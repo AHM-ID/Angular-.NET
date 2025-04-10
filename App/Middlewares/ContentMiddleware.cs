@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text.Json;
 
 namespace Angular.App.Middlewares
 {
@@ -13,65 +14,86 @@ namespace Angular.App.Middlewares
             _logger = logger;
         }
 
-        //* Version 1.0
-        //? Async (eager) Runs immediately after call method
-        // public async Task InvokeAsync(HttpContext context)
-        // {
-        //     await Task.Run(() =>
-        //     {
-        //         _logger.LogInformation("ContentMiddleware executing...");
-
-        //         context.Response.StatusCode = (int)HttpStatusCode.OK; //* OK
-        //         context.Response.ContentType = "application/json";
-
-        //         //? Sample message for non-Mozilla browsers
-        //         var content = "{\"message\": \"Sample message for non mozilla browsers!\"}";
-
-        //         _logger.LogInformation("Writing response content: {Content}", content);
-
-        //         context.Items["Content"] = content;
-        //     });
-        // }
-
-        //* Version 2.0
-        //? Async (defer) Runs lazy when it truely needs
-        public Task InvokeAsync(HttpContext context)
+        public async Task InvokeAsync(HttpContext context)
         {
             _logger.LogInformation("ContentMiddleware executing...");
 
             try
             {
-                context.Response.StatusCode = (int)HttpStatusCode.OK; //* OK
-                context.Response.ContentType = "application/json";
-
-                //? Construct a detailed response message
-                var content = new
+                var path = context.Request.Path.Value;
+                if (
+                    !string.IsNullOrEmpty(path)
+                    && path.StartsWith("/api", StringComparison.OrdinalIgnoreCase)
+                )
                 {
-                    status = "success",
-                    type = "Content Response",
-                    details = new
+                    var originalBodyStream = context.Response.Body;
+                    await using var responseBody = new MemoryStream();
+                    context.Response.Body = responseBody;
+
+                    try
                     {
-                        message = "Sample message for non-Mozilla browsers.",
-                        timestamp = DateTime.UtcNow,
-                        requestInfo = new
+                        await _next(context); // Let controller write the actual response
+
+                        responseBody.Seek(0, SeekOrigin.Begin);
+                        var responseContent = await new StreamReader(responseBody).ReadToEndAsync();
+
+                        // Store only
+                        context.Items["Content"] = responseContent;
+                        _logger.LogInformation(
+                            "Captured API response content: {Content}",
+                            responseContent
+                        );
+                    }
+                    finally
+                    {
+                        context.Response.Body = originalBodyStream;
+                    }
+                }
+                else if (
+                    context.Request.Path.StartsWithSegments("/swagger")
+                    || context.Request.Path.StartsWithSegments("/favicon.ico")
+                    || context.Request.Path.Value?.Contains(".js") == true
+                    || context.Request.Path.Value?.Contains(".css") == true
+                )
+                {
+                    await _next(context);
+                    return;
+                }
+                else
+                {
+                    // Handle non-API requests
+                    context.Response.StatusCode = (int)HttpStatusCode.OK;
+                    context.Response.ContentType = "application/json";
+
+                    var content = new
+                    {
+                        status = "success",
+                        type = "Content Response",
+                        details = new
                         {
-                            userAgent = context.Request.Headers["User-Agent"].ToString(),
-                            ipAddress = context.Connection.RemoteIpAddress?.ToString() ?? "Unknown",
+                            message = "Sample message for non-Mozilla browsers.",
+                            timestamp = DateTime.UtcNow,
+                            requestInfo = new
+                            {
+                                userAgent = context.Request.Headers["User-Agent"].ToString(),
+                                ipAddress = context.Connection.RemoteIpAddress?.ToString()
+                                    ?? "Unknown",
+                            },
                         },
-                    },
-                    metadata = new
-                    {
-                        source = "ContentMiddleware",
-                        description = "This response is generated for supported clients.",
-                    },
-                };
+                        metadata = new
+                        {
+                            source = "ContentMiddleware",
+                            description = "This response is generated for supported clients.",
+                        },
+                    };
 
-                string jsonContent = System.Text.Json.JsonSerializer.Serialize(content);
-                _logger.LogInformation("Writing response content: {Content}", jsonContent);
+                    string jsonContent = JsonSerializer.Serialize(content);
+                    _logger.LogInformation("Writing response content: {Content}", jsonContent);
 
-                context.Items["Content"] = jsonContent;
-
-                return Task.CompletedTask;
+                    // Store in context.Items
+                    context.Items["Content"] = jsonContent;
+                    return;
+                }
             }
             catch (Exception ex)
             {
@@ -79,15 +101,22 @@ namespace Angular.App.Middlewares
                     ex,
                     "An error occurred in ContentMiddleware while processing the response."
                 );
+
                 context.Response.StatusCode = (int)HttpStatusCode.InternalServerError;
+                context.Response.ContentType = "application/json";
+
                 var errorContent = new
                 {
                     error = "An error occurred while processing your request.",
                     details = ex.Message,
                     timestamp = DateTime.UtcNow,
                 };
-                string jsonErrorContent = System.Text.Json.JsonSerializer.Serialize(errorContent);
-                return Task.CompletedTask;
+
+                string jsonErrorContent = JsonSerializer.Serialize(errorContent);
+                context.Items["Content"] = jsonErrorContent;
+
+                // Write the error response
+                await context.Response.WriteAsync(jsonErrorContent);
             }
         }
     }
