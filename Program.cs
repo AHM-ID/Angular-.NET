@@ -79,7 +79,7 @@ builder.WebHost.UseKestrel(options =>
 #region Service Registration & Configuration
 
 builder
-    .Services.AddStaticVariables(builder.Configuration) //? Service Configuration for reading static variables from appsetting
+    .Services.AddInvalidBrowserCheck(builder.Configuration) //? Service Configuration for reading invalid browser from appsetting
     .AddIPValidation() //? Service Extension for ip validation
     .AddBrowserCheck(); //? Service Extension for browser check
 #endregion

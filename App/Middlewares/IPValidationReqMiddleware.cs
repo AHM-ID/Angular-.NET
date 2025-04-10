@@ -1,4 +1,3 @@
-using System.Net;
 using Angular.App.Services.Contracts;
 
 namespace Angular.App.Middlewares

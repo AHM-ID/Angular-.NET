@@ -6,7 +6,7 @@ namespace Angular.App.Middlewares
     {
         private readonly RequestDelegate _next;
         private readonly ILogger<BrowserReqMiddleware> _logger;
-        private readonly IBrowserCheckService _browserCheckServices;
+        private readonly IBrowserCheckService _browserCheckService;
 
         public BrowserReqMiddleware(
             RequestDelegate next,
@@ -16,7 +16,7 @@ namespace Angular.App.Middlewares
         {
             _next = next;
             _logger = logger;
-            _browserCheckServices = browserCheckService;
+            _browserCheckService = browserCheckService;
         }
 
         public async Task InvokeAsync(HttpContext context)
@@ -27,11 +27,11 @@ namespace Angular.App.Middlewares
             {
                 bool isValidBrowser = false;
 
-                //! Vendor/Version
+                //! Vendor/Version check using the "User-Agent" header
                 if (context.Request.Headers.TryGetValue("User-Agent", out var userAgent))
                 {
-                    //? Check for valid browser
-                    isValidBrowser = await _browserCheckServices.ValidateBrowser(userAgent);
+                    //? Ensure the userAgent is passed in the correct format (StringValues) for ValidateBrowser method
+                    isValidBrowser = await _browserCheckService.ValidateBrowser(userAgent);
 
                     _logger.LogInformation(
                         "User-Agent detected: {UserAgent}",
@@ -39,16 +39,21 @@ namespace Angular.App.Middlewares
                     );
                 }
 
-                _logger.LogInformation("Setting InvalidBrowser: {isValidBrowser}", isValidBrowser);
+                //? Log the result of browser validation (whether the browser is valid or invalid)
+                _logger.LogInformation(
+                    "Setting InvalidBrowser flag: {InvalidBrowser}",
+                    !isValidBrowser
+                );
 
-                //? Ensure ValidBrowser is always set
-                context.Items["ValidBrowser"] = isValidBrowser;
+                //? Store the result of browser validation in the HttpContext.Items
+                context.Items["InvalidBrowser"] = !isValidBrowser;
 
-                //? Pipeline (IPValidation SC)
+                //? Continue the request pipeline (next middleware)
                 await _next(context);
             }
             catch (Exception ex)
             {
+                //? Log any exceptions that occur in the middleware
                 _logger.LogError(ex, "Exception in BrowserReqMiddleware");
                 throw;
             }

@@ -20,13 +20,13 @@ namespace Angular.App.Middlewares
             try
             {
                 if (
-                    context.Items.TryGetValue("ValidBrowser", out var value)
-                    && value is bool isValidBrowser
+                    context.Items.TryGetValue("InvalidBrowser", out var value)
+                    && value is bool isInvalidBrowser
                 )
                 {
-                    _logger.LogInformation($"Retrieved InvalidBrowser: {isValidBrowser}");
+                    _logger.LogInformation($"Retrieved InvalidBrowser: {isInvalidBrowser}");
 
-                    if (!isValidBrowser) //! 🚨 Invalid Browser detected
+                    if (isInvalidBrowser) //! 🚨 Invalid Browser detected
                     {
                         _logger.LogWarning("Invalid Browser detected - Blocking request.");
 

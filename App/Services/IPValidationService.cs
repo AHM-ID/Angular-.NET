@@ -1,12 +1,5 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
-using Angular.App.Options;
 using Angular.App.Services.Contracts;
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 
 namespace Angular.App.Services
 {
