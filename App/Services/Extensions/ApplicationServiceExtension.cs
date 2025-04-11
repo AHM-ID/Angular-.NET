@@ -1,5 +1,3 @@
-using Microsoft.OpenApi.Models;
-
 namespace Angular.App.Services.Extensions
 {
     public static class ApplicationServiceExtension

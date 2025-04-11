@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Angular.App.Models;
 using Angular.App.Services.Contracts;
 using Microsoft.AspNetCore.Mvc;
@@ -9,238 +10,318 @@ namespace Angular.App.APIs
     public class RestfulAPIServiceController : ControllerBase
     {
         private readonly IBrowserCheckService _browserCheckService;
+        private readonly ILogger<RestfulAPIServiceController> _logger;
 
-        public RestfulAPIServiceController(IBrowserCheckService browserCheckService)
+        public RestfulAPIServiceController(
+            IBrowserCheckService browserCheckService,
+            ILogger<RestfulAPIServiceController> logger
+        )
         {
             _browserCheckService = browserCheckService;
+            _logger = logger;
         }
 
-        [HttpGet]
-        public async Task<IActionResult> GetData1Async()
-        {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = "Sample Basic Content from getData1",
-                    }
-                )
-            );
-        }
-
-        [HttpGet("data2")]
-        public async Task<IActionResult> GetData2Async()
-        {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = "Sample Basic Content from getData2",
-                    }
-                )
-            );
-        }
-
-        [HttpGet("data3/1")]
-        public async Task<IActionResult> GetData3Async()
-        {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = "Sample Basic Content from getData3",
-                    }
-                )
-            );
-        }
-
-        [HttpGet("data4/{id}")]
-        public async Task<IActionResult> GetData4Async([FromRoute] int id)
-        {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = new { id },
-                    }
-                )
-            );
-        }
-
-        [HttpGet("data5")]
-        public async Task<IActionResult> GetData5Async(
-            [FromQuery] string str1,
-            [FromQuery] string str2
+        //? Unified API Response Wrapper
+        private static JsonResult BuildResponse<T>(
+            bool success,
+            string message,
+            T? data,
+            object? error = null,
+            long? elapsedMilliseconds = null
         )
         {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
+            return new JsonResult(
+                new ApiResponse<T>
+                {
+                    Status = success ? "success" : "error",
+                    Message = message,
+                    Data = data,
+                    Error = error,
+                    Metadata = new
                     {
-                        success = true,
-                        message = "Request successful",
-                        data = new { combined = $"{str1} + {str2}" },
-                    }
-                )
+                        Timestamp = DateTime.UtcNow,
+                        ApiVersion = "1.0",
+                        RequestId = Guid.NewGuid().ToString(),
+                        ResponseTimeMs = elapsedMilliseconds,
+                    },
+                }
             );
         }
 
-        [HttpGet("data6/{str1}/{str2}")]
-        public async Task<IActionResult> GetData6Async(
-            [FromRoute] string str1,
-            [FromRoute] string str2
-        )
+        private IActionResult WithTiming(string actionName, Func<long, IActionResult> action)
         {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = new { combined = $"{str1} + {str2}" },
-                    }
-                )
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("{Action} started", actionName);
+            var result = action(stopwatch.ElapsedMilliseconds);
+            stopwatch.Stop();
+            _logger.LogInformation(
+                "{Action} completed in {Time} ms",
+                actionName,
+                stopwatch.ElapsedMilliseconds
             );
+            return result;
         }
 
-        [HttpGet("status")]
-        public async Task<IActionResult> GetStatusAsync()
+        //========================
+        //* Basic Data Endpoints
+        //========================
+
+        //! GET: api/rest/data/basic-1
+        [HttpGet("data")]
+        public IActionResult FetchBasicData1() =>
+            WithTiming(
+                "FetchBasicData1",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "Request successful",
+                        new { content = "Sample Basic Content from getData1" },
+                        null,
+                        elapsed
+                    )
+            );
+
+        //! GET: api/rest/data/basic-2
+        [HttpGet("data/basic-2")]
+        public IActionResult FetchBasicData2() =>
+            WithTiming(
+                "FetchBasicData2",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "Request successful",
+                        new { content = "Sample Basic Content from getData2" },
+                        null,
+                        elapsed
+                    )
+            );
+
+        //! GET: api/rest/data/static/1
+        [HttpGet("data/static/1")]
+        public IActionResult FetchStaticData3() =>
+            WithTiming(
+                "FetchStaticData3",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "Request successful",
+                        new { content = "Sample Basic Content from getData3" },
+                        null,
+                        elapsed
+                    )
+            );
+
+        //! GET: api/rest/data/id/{id}
+        [HttpGet("data/id/{id}")]
+        public IActionResult FetchDataById([FromRoute] int id) =>
+            WithTiming(
+                "FetchDataById",
+                elapsed => BuildResponse(true, "Request successful", new { id }, null, elapsed)
+            );
+
+        //! GET: api/rest/data/query?str1=x&str2=y
+        [HttpGet("data/query")]
+        public IActionResult FetchCombinedQuery([FromQuery] string str1, [FromQuery] string str2) =>
+            WithTiming(
+                "FetchCombinedQuery",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "Request successful",
+                        new { combined = $"{str1} + {str2}" },
+                        null,
+                        elapsed
+                    )
+            );
+
+        //! GET: api/rest/data/route/{str1}/{str2}
+        [HttpGet("data/route/{str1}/{str2}")]
+        public IActionResult FetchCombinedRoute([FromRoute] string str1, [FromRoute] string str2) =>
+            WithTiming(
+                "FetchCombinedRoute",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "Request successful",
+                        new { combined = $"{str1} + {str2}" },
+                        null,
+                        elapsed
+                    )
+            );
+
+        //! GET: api/rest/meta/status-code
+        [HttpGet("meta/status-code")]
+        public IActionResult FetchCustomStatus()
         {
-            return await Task.FromResult(StatusCode(250, "Sample Title"));
+            _logger.LogInformation("FetchCustomStatus called");
+            return StatusCode(250, new { status = "info", message = "Sample Title" });
         }
 
-        [HttpGet("products/authorized")]
-        public async Task<IActionResult> GetProductsAsync()
-        {
-            var products = new List<Product>()
-            {
-                new Product() { productId = 1, productName = "p1" },
-                new Product() { productId = 2, productName = "p2" },
-                new Product() { productId = 3, productName = "p3" },
-            };
+        //=============================
+        //* Product Endpoints
+        //=============================
 
-            return await Task.FromResult(Ok(products));
-        }
+        //! GET: api/rest/products
+        [HttpGet("products")]
+        public IActionResult FetchAuthorizedProducts() =>
+            WithTiming(
+                "FetchAuthorizedProducts",
+                elapsed =>
+                {
+                    var products = new List<Product>
+                    {
+                        new Product { productId = 1, productName = "p1" },
+                        new Product { productId = 2, productName = "p2" },
+                        new Product { productId = 3, productName = "p3" },
+                    };
 
+                    return BuildResponse(
+                        true,
+                        "Products retrieved successfully",
+                        products,
+                        null,
+                        elapsed
+                    );
+                }
+            );
+
+        //! GET: api/rest/products/unauthorized
         [HttpGet("products/unauthorized")]
-        public async Task<ActionResult<IEnumerable<Product>>> GetProductsAsync(
+        public ActionResult<IEnumerable<Product>> FetchUnauthorizedProducts(
             [FromHeader] string token
         )
         {
-            //? Token -> Claims -> UserName -> Authorize -> Unauthorized
-            //? DataBase Check
-            var products = new List<Product>()
-            {
-                new Product() { productId = 1, productName = "p1" },
-                new Product() { productId = 2, productName = "p2" },
-                new Product() { productId = 3, productName = "p3" },
-            };
-
-            return await Task.FromResult(Unauthorized("User unauthorized to get products list"));
+            _logger.LogWarning("Unauthorized access attempt with token: {Token}", token);
+            //TODO: Implement real token validation & authorization
+            return Unauthorized(new { error = "User unauthorized to access the products list" });
         }
 
-        [HttpGet("service")]
-        public async Task<IActionResult> CheckBrowserServiceAsync(
+        //! POST: api/rest/products/details
+        [HttpPost("products/details")]
+        public IActionResult ReceiveProductDetails([FromBody] Product product) =>
+            WithTiming(
+                "ReceiveProductDetails",
+                elapsed =>
+                {
+                    if (product == null)
+                    {
+                        _logger.LogWarning("Invalid product data received.");
+                        return BadRequest(
+                            BuildResponse<string>(
+                                false,
+                                "Invalid product data",
+                                null,
+                                null,
+                                elapsed
+                            )
+                        );
+                    }
+
+                    return BuildResponse(
+                        true,
+                        "Product details received successfully",
+                        new { productInfo = $"{product.productId}, {product.productName}" },
+                        null,
+                        elapsed
+                    );
+                }
+            );
+
+        //=============================
+        //* Browser Validation Service
+        //=============================
+
+        //! GET: api/rest/browser/validate
+        [HttpGet("browser/validate")]
+        public async Task<IActionResult> ValidateBrowserFromServiceAsync(
             [FromServices] IBrowserCheckService browserCheckService
         )
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("ValidateBrowserFromServiceAsync called");
+
             var userAgent = Request.Headers["User-Agent"].ToString();
             var isValidBrowser = await browserCheckService.ValidateBrowser(userAgent);
 
-            return new JsonResult(
-                new
-                {
-                    success = true,
-                    message = "Request successful",
-                    data = new { result = $"Valid Browser: {isValidBrowser}" },
-                }
+            stopwatch.Stop();
+            _logger.LogInformation("Browser validated in {Time} ms", stopwatch.ElapsedMilliseconds);
+
+            return BuildResponse(
+                true,
+                "Browser validation successful",
+                new { result = $"Valid Browser: {isValidBrowser}" },
+                null,
+                stopwatch.ElapsedMilliseconds
             );
         }
 
-        [HttpGet("service/constructor")]
-        public async Task<IActionResult> CheckBrowserServiceAsync()
+        //! GET: api/rest/browser/validate/constructor
+        [HttpGet("browser/validate/constructor")]
+        public async Task<IActionResult> ValidateBrowserFromConstructorAsync()
         {
+            var stopwatch = Stopwatch.StartNew();
+            _logger.LogInformation("ValidateBrowserFromConstructorAsync called");
+
             var userAgent = Request.Headers["User-Agent"].ToString();
             var isValidBrowser = await _browserCheckService.ValidateBrowser(userAgent);
 
-            return new JsonResult(
-                new
-                {
-                    success = true,
-                    message = "Request successful",
-                    data = new { result = $"Valid Browser: {isValidBrowser}" },
-                }
+            stopwatch.Stop();
+            _logger.LogInformation("Browser validated in {Time} ms", stopwatch.ElapsedMilliseconds);
+
+            return BuildResponse(
+                true,
+                "Browser validation successful",
+                new { result = $"Valid Browser: {isValidBrowser}" },
+                null,
+                stopwatch.ElapsedMilliseconds
             );
         }
 
-        [HttpPost("profile")]
-        public async Task<IActionResult> CreateProfileAsync(
+        //=============================
+        //* User & Token Endpoints
+        //=============================
+
+        //! POST: api/rest/users/profile
+        [HttpPost("users/profile")]
+        public IActionResult CreateUserProfile(
             [FromForm] string firstName,
             [FromForm] string lastName
-        )
-        {
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = new { combined = $"Name: {firstName} {lastName}" },
-                    }
-                )
+        ) =>
+            WithTiming(
+                "CreateUserProfile",
+                elapsed =>
+                    BuildResponse(
+                        true,
+                        "User profile created successfully",
+                        new { fullName = $"{firstName} {lastName}" },
+                        null,
+                        elapsed
+                    )
             );
-        }
 
-        [HttpPost("product")]
-        public async Task<IActionResult> GetProductsAsync([FromBody] Product product)
-        {
-            if (product == null)
-            {
-                return await Task.FromResult(
-                    BadRequest(new { success = false, message = "Invalid product data" })
-                );
-            }
-
-            return await Task.FromResult(
-                new JsonResult(
-                    new
+        //! POST: api/rest/users/token
+        [HttpPost("users/token")]
+        public IActionResult ReceiveCustomerToken([FromHeader] string token) =>
+            WithTiming(
+                "ReceiveCustomerToken",
+                elapsed =>
+                {
+                    if (string.IsNullOrEmpty(token))
                     {
-                        success = true,
-                        message = "Request successful",
-                        data = new { product = $"{product.productId}, {product.productName}" },
+                        _logger.LogWarning("Token missing from header.");
+                        return BadRequest(
+                            BuildResponse<string>(false, "Token is required", null, null, elapsed)
+                        );
                     }
-                )
-            );
-        }
 
-        [HttpPost("customer")]
-        public async Task<IActionResult> GetCustomerAsync([FromHeader] string token)
-        {
-            if (string.IsNullOrEmpty(token))
-            {
-                return await Task.FromResult(
-                    BadRequest(new { success = false, message = "Token is required" })
-                );
-            }
-
-            return await Task.FromResult(
-                new JsonResult(
-                    new
-                    {
-                        success = true,
-                        message = "Request successful",
-                        data = new { token },
-                    }
-                )
+                    return BuildResponse(
+                        true,
+                        "Token received successfully",
+                        new { token },
+                        null,
+                        elapsed
+                    );
+                }
             );
-        }
     }
 }
